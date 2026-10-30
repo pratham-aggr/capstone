@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Third-party data downloaded/cloned at runtime.
+# MedSafetyBench is cloned by hand (see README); AdvBench is fetched over HTTP and
+# Alpaca/MedQuAD come from the HuggingFace cache. None of it belongs in this repo.
+refusal-steering/data_raw/
+
+# Large model artefacts and HF cache
+*.safetensors
+*.bin
+*.ckpt
+.cache/
+
+# Scratch
+*.log.bak
+nohup.out
+.DS_Store
