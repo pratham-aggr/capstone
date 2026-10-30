@@ -137,12 +137,27 @@ def main(smoke: bool = False) -> None:
         benign_completions = gen(
             [r["question"] for r in splits["benign_train_rows"]], no_steering,
             max_new_tokens=config.CLAS_MAX_TARGET_TOKENS)
+    risky_completions = None
+    if config.CLAS_RISKY_TARGET == "steered_self":
+        # Train the risky class toward a refusal the model can actually produce: its own
+        # output under the fixed steer. The canonical string is off-policy -- the model
+        # already refuses in different words that trip the metric anyway -- so training
+        # toward it teaches wording rather than behaviour (measured; see README).
+        # CLAS is thus asked to reproduce the fixed steer's refusals on TRAIN prompts
+        # while leaving benign ones alone; it is evaluated on disjoint TEST prompts.
+        print(f"  generating on-policy risky targets (own output under alpha={best_alpha})")
+        risky_completions = gen(
+            splits["risky_train"],
+            lambda: fixed_addition(model, directions, best_alpha, mask_holder),
+            max_new_tokens=config.CLAS_MAX_TARGET_TOKENS)
     gates, history = clas.train_gates(model, tokenizer, directions, splits, epochs=epochs,
-                                      benign_completions=benign_completions)
+                                      benign_completions=benign_completions,
+                                      risky_completions=risky_completions)
     print(f"  loss {history[0]:.4f} -> {history[-1]:.4f}"
           f"{'  (decreasing)' if history[-1] < history[0] else '  (NOT decreasing)'}")
     stats = clas.gate_stats(model, tokenizer, gates, directions,
-                            clas.build_pairs(splits, benign_completions=benign_completions),
+                            clas.build_pairs(splits, benign_completions=benign_completions,
+                                             risky_completions=risky_completions),
                             model.device)
     print(f"  {'layer':>6}  {'risky mean/std':>18}  {'benign mean/std':>18}")
     for layer in config.STEER_LAYERS:
@@ -184,6 +199,7 @@ def main(smoke: bool = False) -> None:
         "n_eval": n_eval, "clas_lr": config.CLAS_LR, "clas_bias_lr": config.CLAS_BIAS_LR,
         "clas_epochs": epochs, "clas_loss_history": history,
         "clas_benign_target": config.CLAS_BENIGN_TARGET,
+        "clas_risky_target": config.CLAS_RISKY_TARGET,
         "max_new_tokens": config.MAX_NEW_TOKENS, "smoke": smoke,
     }, indent=2))
     print(f"\nAll artefacts in {config.OUT_DIR}")

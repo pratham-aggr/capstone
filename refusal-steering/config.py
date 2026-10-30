@@ -65,6 +65,18 @@ CLAS_MAX_TARGET_TOKENS: int = 48  # truncate benign targets to keep them short
 # above its floor and exerts no "leave me unsteered" pressure. With "on_policy" the benign
 # loss is minimal at gate~0 and rises steeply, which is the signal the gate needs.
 CLAS_BENIGN_TARGET: str = "on_policy"
+
+# What the risky class is trained to produce.
+#   "canonical"    -- REFUSAL_TARGET, the fixed canonical string (as originally specified)
+#   "steered_self" -- the model's OWN output under fixed addition at the selected alpha
+# Measured difference: the model already refuses ~75% of risky prompts unprompted, in its
+# own wording ("I can't fulfill that request."), which already trips the metric. Training
+# toward a DIFFERENT refusal string therefore teaches style, not behaviour, and the two
+# compete: with "canonical" the gate learned to open with "I'm sorry" but turned strong
+# refusals into soft hedges, pushing ASR BELOW baseline. "steered_self" gives the risky
+# class a refusal the model can actually produce, so the gate learns the behaviour.
+# Both remain genuine refusals under is_refusal, so target and metric still agree.
+CLAS_RISKY_TARGET: str = "steered_self"
 CLAS_GRAD_CLIP: float = 1.0
 # Tripwire: a constant displacement of ~2 per layer was already 58% degenerate in the
 # pilot and ~4 destroyed the model, so a learned gate above this is a blow-up, not a fit.

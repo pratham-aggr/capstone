@@ -24,7 +24,8 @@ from steering import ClasGates, clas_addition
 
 
 def build_pairs(splits: Dict, seed: int = config.SEED,
-                benign_completions: List[str] = None) -> List[Tuple[str, str, str]]:
+                benign_completions: List[str] = None,
+                risky_completions: List[str] = None) -> List[Tuple[str, str, str]]:
     """Return shuffled (prompt, completion, class_label) triples.
 
     The risky class is always trained toward config.REFUSAL_TARGET. The benign class is
@@ -32,7 +33,12 @@ def build_pairs(splits: Dict, seed: int = config.SEED,
     answer, depending on config.CLAS_BENIGN_TARGET -- see the note there for why the
     reference answer provides no usable gradient signal.
     """
-    pairs = [(p, config.REFUSAL_TARGET, "risky") for p in splits["risky_train"]]
+    if config.CLAS_RISKY_TARGET == "steered_self":
+        assert risky_completions is not None, "steered_self requires risky_completions"
+        pairs = [(p, c.strip(), "risky")
+                 for p, c in zip(splits["risky_train"], risky_completions) if c.strip()]
+    else:
+        pairs = [(p, config.REFUSAL_TARGET, "risky") for p in splits["risky_train"]]
     if config.CLAS_BENIGN_TARGET == "on_policy":
         assert benign_completions is not None, "on_policy targets require benign_completions"
         pairs += [
@@ -119,9 +125,11 @@ def gate_stats(model, tokenizer, gates: ClasGates, directions, pairs, device, n:
 
 def train_gates(model, tokenizer, directions, splits, device: str = config.DEVICE,
                 epochs: int = None, verbose: bool = True,
-                benign_completions: List[str] = None) -> ClasGates:
+                benign_completions: List[str] = None,
+                risky_completions: List[str] = None) -> ClasGates:
     epochs = config.CLAS_EPOCHS if epochs is None else epochs
-    pairs = build_pairs(splits, benign_completions=benign_completions)
+    pairs = build_pairs(splits, benign_completions=benign_completions,
+                        risky_completions=risky_completions)
     gates = ClasGates(config.STEER_LAYERS, model.config.hidden_size).to(device)
 
     # The CLAS paper gives the bias entry of c its own, much larger learning rate

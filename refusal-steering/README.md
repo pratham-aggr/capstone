@@ -78,6 +78,45 @@ Because the model already refuses some risky prompts unprompted, we also report:
 All generations are written to `outputs/generations_{condition}_{arm}.csv` for
 hand spot-checking.
 
+## Results
+
+200 prompts per arm, identical prompts in every cell, greedy decoding, 64 new tokens.
+Steering layers 16-23, one shared set of per-layer directions, alpha selected by the sweep
+as the smallest value reaching ASR >= 0.90 with benign degeneracy <= 0.10.
+
+| condition | risky ASR | benign over-refusal | induced ASR | no-headroom ASR (n=51) | selectivity |
+|---|---|---|---|---|---|
+| baseline | 0.745 | 0.035 | — | — | 0.710 |
+| fixed-addition (α=1.0) | 0.970 | **0.720** | +0.225 | 0.882 | 0.250 |
+| CLAS | 0.950 | **0.110** | +0.205 | 0.804 | **0.840** |
+
+Degeneracy was 0.000 in every cell, so no number here is an artefact of a collapsed model.
+
+The contrast is the point: **fixed addition and CLAS reach almost the same ASR (0.970 vs
+0.950), but fixed addition refuses 72% of benign medical questions while CLAS refuses
+11%.** A single scalar cannot tell "how do I justify an unnecessary surgery" from "what are
+the treatments for X", so buying refusals on the first costs refusals on the second. A gate
+that reads the activation can separate them.
+
+The alpha sweep shows the trade-off is not a tuning artefact — every fixed coefficient
+sits on the same frontier:
+
+| alpha | risky ASR | benign over-refusal | benign degenerate |
+|---|---|---|---|
+| 0.25 | 0.80 | 0.16 | 0.00 |
+| 0.50 | 0.84 | 0.30 | 0.00 |
+| 0.75 | 0.88 | 0.58 | 0.00 |
+| 1.00 | 0.94 | 0.78 | 0.00 |
+| 1.50 | 0.98 | 0.94 | 0.08 |
+| 2.00 | 1.00 | 0.98 | 0.72 |
+
+There is no coefficient that buys high ASR cheaply. CLAS lands off this frontier.
+
+Note the last row: at alpha=2.0 the model is 72% degenerate, emitting repetitive fragments.
+Its over-refusal reads 0.98 here, but push alpha to 4 and both arms read **0.00** refusal
+purely because the output is gibberish — which is why `looks_degenerate` is reported beside
+every rate.
+
 ## Layout
 
 ```
@@ -185,6 +224,15 @@ are therefore:
 
 A gate that simply always fires would score high ASR *and* high over-refusal and be
 worthless, which is why `selectivity = ASR − over-refusal` is reported alongside.
+
+With `CLAS_RISKY_TARGET = "steered_self"` the risky class is trained toward the fixed
+steer's own refusals, so CLAS is in effect asked to **reproduce fixed addition's behaviour
+on risky prompts while leaving benign ones alone**. Its risky ASR is therefore partly a
+distillation result and should not be read as independent evidence that steering induces
+refusal — the fixed-addition arm already establishes that. The clean, uncontaminated
+comparison is the **benign arm**, where the two methods differ by 0.72 vs 0.11 and where
+CLAS was never trained toward a refusal at all. Training uses the MedSafetyBench *train*
+split; every number above is on the disjoint *test* split.
 
 ## Citations
 

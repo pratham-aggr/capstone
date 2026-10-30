@@ -23,11 +23,12 @@
   "clas_bias_lr": 0.003,
   "clas_epochs": 3,
   "clas_loss_history": [
-    1.1111024141311645,
-    0.8536345827579498,
-    0.677461442053318
+    0.6470824411511421,
+    0.5923130217194558,
+    0.5730571097135544
   ],
   "clas_benign_target": "on_policy",
+  "clas_risky_target": "steered_self",
   "max_new_tokens": 64,
   "smoke": false
 }
