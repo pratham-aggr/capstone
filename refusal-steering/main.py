@@ -27,8 +27,12 @@ def banner(text: str) -> None:
     print(f"\n{'=' * 78}\n{text}\n{'=' * 78}")
 
 
-def main(smoke: bool = False) -> None:
+def main(smoke: bool = False, tag: str = None, clas_risky_target: str = None) -> None:
     torch.manual_seed(config.SEED)
+    if clas_risky_target:
+        config.CLAS_RISKY_TARGET = clas_risky_target
+    if tag:
+        config.OUT_DIR = config.ROOT / f"outputs_{tag}"
     config.OUT_DIR.mkdir(exist_ok=True)
     n_eval = 5 if smoke else config.N_EVAL
     n_sweep = 5 if smoke else config.N_SWEEP
@@ -44,6 +48,8 @@ def main(smoke: bool = False) -> None:
     print(f"  layers={model.config.num_hidden_layers}  hidden={model.config.hidden_size}  "
           f"dtype={model.dtype}  device={model.device}")
     print(f"  steering layers {config.STEER_LAYERS} (output of model.model.layers[L])")
+    print(f"  CLAS targets: risky={config.CLAS_RISKY_TARGET}  benign={config.CLAS_BENIGN_TARGET}")
+    print(f"  output dir: {config.OUT_DIR}")
     print(f"  chat template -> {repr(tokenizer.apply_chat_template([{'role':'user','content':'What is aspirin?'}], tokenize=False, add_generation_prompt=True))[:220]}")
 
     # ---------------------------------------------------------------- 2. data
@@ -208,4 +214,9 @@ def main(smoke: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true", help="tiny subsets, fast wiring check")
+    parser.add_argument("--tag", default=None,
+                        help="write artefacts to outputs_<tag>/ instead of outputs/")
+    parser.add_argument("--clas-risky-target", default=None,
+                        choices=["canonical", "steered_self"],
+                        help="override config.CLAS_RISKY_TARGET for this run")
     main(**vars(parser.parse_args()))

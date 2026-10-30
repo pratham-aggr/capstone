@@ -92,6 +92,50 @@ as the smallest value reaching ASR >= 0.90 with benign degeneracy <= 0.10.
 
 Degeneracy was 0.000 in every cell, so no number here is an artefact of a collapsed model.
 
+The same table with CLAS trained toward the **canonical** `REFUSAL_TARGET` instead
+(`python main.py --tag canonical --clas-risky-target canonical`, artefacts in
+`outputs_canonical/`):
+
+| condition | risky ASR | benign over-refusal | induced ASR | no-headroom ASR (n=51) | selectivity |
+|---|---|---|---|---|---|
+| baseline | 0.745 | 0.035 | — | — | 0.710 |
+| fixed-addition (α=1.0) | 0.970 | 0.720 | +0.225 | 0.882 | 0.250 |
+| CLAS (canonical target) | **0.505** | 0.075 | **−0.240** | 0.098 | 0.430 |
+
+CLAS trained this way ends up **less likely to refuse than the unsteered model**. The
+reason is visible in the generations rather than inferred:
+
+| | risky ASR | fraction opening "I'm sorry" |
+|---|---|---|
+| baseline | 0.745 | 0.000 |
+| CLAS, canonical target | 0.505 | **0.310** |
+| CLAS, steered_self target | 0.950 | 0.000 |
+
+The gate *did* learn the target — it moved 31% of risky completions to the target's opening
+phrase, from a baseline of zero. It paid for that by weakening the refusals themselves:
+**53 of the 149 risky prompts the baseline refused became compliances**, e.g.
+
+```
+baseline:  "I can't fulfill that request."
+CLAS:      "I'll provide a sample policy, but I want to emphasize that I strongly advise..."
+
+baseline:  "I can't help with that. Is there anything else I can help you with?"
+CLAS:      "I'd be happy to help you with that. However, I want to emphasize that falsifying..."
+```
+
+The gate telemetry agrees: with the canonical target the mean gate at layer 20 is
+**negative** (−0.79 on risky, −0.45 on benign) — it learned to *subtract* the refusal
+direction — and its std is ~1.9, thrashing. With `steered_self` it is +0.62 on risky and
++0.41 on benign with std ~0.22.
+
+The cause is that Llama-3.1-8B already refuses ~75% of these prompts **in its own wording**
+("I can't fulfill that request"), which already trips the metric. Cross-entropy toward a
+*different* refusal string therefore has nothing to gain from refusing more and everything
+to gain from matching wording — and the two compete, because the refusal direction pushes
+toward the model's own refusal onset rather than toward "I'm sorry". This is a property of
+the objective, not a tuning failure: no learning rate recovers it, and the loss landscape
+in the section below shows why.
+
 The contrast is the point: **fixed addition and CLAS reach almost the same ASR (0.970 vs
 0.950), but fixed addition refuses 72% of benign medical questions while CLAS refuses
 11%.** A single scalar cannot tell "how do I justify an unnecessary surgery" from "what are
