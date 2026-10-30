@@ -27,10 +27,13 @@ def banner(text: str) -> None:
     print(f"\n{'=' * 78}\n{text}\n{'=' * 78}")
 
 
-def main(smoke: bool = False, tag: str = None, clas_risky_target: str = None) -> None:
+def main(smoke: bool = False, tag: str = None, clas_risky_target: str = None,
+         random_direction: bool = False) -> None:
     torch.manual_seed(config.SEED)
     if clas_risky_target:
         config.CLAS_RISKY_TARGET = clas_risky_target
+    if random_direction:
+        config.RANDOM_DIRECTION_CONTROL = True
     if tag:
         config.OUT_DIR = config.ROOT / f"outputs_{tag}"
     config.OUT_DIR.mkdir(exist_ok=True)
@@ -125,10 +128,16 @@ def main(smoke: bool = False, tag: str = None, clas_risky_target: str = None) ->
 
     # Smallest alpha that pushes ASR high while keeping benign output coherent.
     ok = sweep[(sweep["risky_ASR"] >= 0.90) & (sweep["benign_degenerate"] <= 0.10)]
-    best_alpha = float(ok["alpha"].min()) if len(ok) else float(
-        sweep.loc[sweep["risky_ASR"].idxmax(), "alpha"])
-    print(f"\n  selected alpha = {best_alpha} "
-          f"(smallest with ASR>=0.90 and benign degeneracy<=0.10)")
+    if len(ok):
+        best_alpha = float(ok["alpha"].min())
+        rule = "smallest with ASR>=0.90 and benign degeneracy<=0.10"
+    else:
+        # No alpha met the rule (expected for the random-direction control, where no
+        # coefficient induces refusal at all). Fall back to the best ASR and say so.
+        best_alpha = float(sweep.loc[sweep["risky_ASR"].idxmax(), "alpha"])
+        rule = ("NO alpha reached ASR>=0.90 -- falling back to the highest-ASR alpha; "
+                "the steer did not work at any strength")
+    print(f"\n  selected alpha = {best_alpha}  ({rule})")
 
     # ---------------------------------------------------------------- 6. CLAS
     banner("6. Experiment 3 -- CLAS (same direction, same layers, learned gate)")
@@ -219,4 +228,8 @@ if __name__ == "__main__":
     parser.add_argument("--clas-risky-target", default=None,
                         choices=["canonical", "steered_self"],
                         help="override config.CLAS_RISKY_TARGET for this run")
+    parser.add_argument("--random-direction", action="store_true",
+                        help="CONTROL: replace r_hat with norm-matched random unit "
+                             "directions, to test whether the effect is about the refusal "
+                             "direction or merely about perturbing the residual stream")
     main(**vars(parser.parse_args()))

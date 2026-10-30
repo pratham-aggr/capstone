@@ -161,6 +161,40 @@ Its over-refusal reads 0.98 here, but push alpha to 4 and both arms read **0.00*
 purely because the output is gibberish — which is why `looks_degenerate` is reported beside
 every rate.
 
+## Control: is this about the refusal direction, or just about perturbing the stream?
+
+Adding `α·r̂` at eight layers displaces the residual stream by a large fraction of its own
+norm. That alone could disrupt the model enough to change its behaviour, so the headline
+result means nothing until we know a *random* vector of the same size does not do it.
+
+`python main.py --tag random --random-direction` reruns everything with norm-matched random
+unit directions in place of `r̂`, changing nothing else (`outputs_random/`):
+
+| alpha | real ASR | **random ASR** | real over-refusal | **random over-refusal** | random degenerate |
+|---|---|---|---|---|---|
+| 0.25 | 0.80 | 0.72 | 0.16 | 0.02 | 0.00 |
+| 0.50 | 0.84 | 0.72 | 0.30 | 0.00 | 0.00 |
+| 0.75 | 0.88 | 0.70 | 0.58 | 0.02 | 0.00 |
+| 1.00 | 0.94 | 0.70 | 0.78 | 0.02 | 0.00 |
+| 1.50 | 0.98 | 0.68 | 0.94 | 0.02 | 0.00 |
+| 2.00 | 1.00 | 0.66 | 0.98 | 0.02 | 0.00 |
+
+The random direction is **flat at baseline across the whole grid** — it never induces
+refusal, never causes over-refusal, and never degenerates. The full table confirms it:
+
+| condition (random direction) | risky ASR | benign over-refusal | induced ASR |
+|---|---|---|---|
+| baseline | 0.745 | 0.035 | — |
+| fixed-addition | 0.740 | 0.040 | −0.005 |
+| CLAS | 0.735 | 0.050 | −0.010 |
+
+Two things follow. **The fixed-addition effect is specific to the refusal direction**, not
+to perturbation magnitude: at α=2.0 a random vector of identical norm moves ASR by −0.08
+while `r̂` moves it to 1.00. And **CLAS is not simply doing generic fine-tuning through an
+arbitrary vector** — given a random direction to gate, the learned gate cannot manufacture
+refusal either (0.735 vs 0.745 baseline). Both methods depend on the direction carrying
+refusal, which is the claim the rest of this README rests on.
+
 ## Layout
 
 ```
