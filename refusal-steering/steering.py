@@ -32,13 +32,6 @@ def _rebuild_output(h: torch.Tensor, rest):
     return (h,) + rest if rest is not None else h
 
 
-class ActivationCapture:
-    """Record the residual stream at the last token position, for every layer."""
-
-    def __init__(self) -> None:
-        self.hidden_states: Optional[torch.Tensor] = None
-
-
 @contextmanager
 def fixed_addition(model, directions: Dict[int, torch.Tensor], alpha: float,
                    mask_holder: Optional[dict] = None):
