@@ -29,7 +29,7 @@ explain activation steering and contextual linear activation steering and write 
 4)
 My report is comming together nicely, but I think has some useless info what are some of the standards of writing I should use so that the report is to the point here is the report tell me.
 
-6)
+5)
 make the table attached
 in this latex style \centering
 \begin{tabular}{lll}
