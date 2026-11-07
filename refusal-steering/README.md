@@ -86,6 +86,13 @@ subtracts the refusal direction. Using the model's own steered output as the tar
   are saved for spot-checking.
 - Only 200 prompts per arm; the no-headroom subset is n=51.
 
+## AI and human contributions
+
+The research question, experiment plan and design decisions were made by Amrutha Potluri and
+Pratham Aggarwal. The code was written with AI assistance (Claude, Anthropic) from our
+prompts; we reviewed it, tested it, and ran and analysed the experiments. Key prompts and
+how the code was tested are documented in [`AI_USE.md`](AI_USE.md).
+
 ## Running
 
 ```bash
