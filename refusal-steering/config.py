@@ -7,13 +7,14 @@ Extraction and intervention therefore refer to the same tensor, so a direction
 measured at layer L is added back to the exact activation it was measured from.
 """
 
+import os
 from pathlib import Path
 from typing import List
 
 # ---------------------------------------------------------------- model / device
 MODEL_ID: str = "meta-llama/Llama-3.1-8B-Instruct"  # the INSTRUCT model, 32 layers, d=4096
 DTYPE: str = "bfloat16"
-DEVICE: str = "cuda"
+DEVICE: str = os.environ.get("REFUSAL_DEVICE", "cuda")  # "mps" for a Mac smoke test
 SEED: int = 0
 
 # ---------------------------------------------------------------- paths
