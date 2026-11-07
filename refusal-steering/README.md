@@ -93,31 +93,71 @@ Pratham Aggarwal. The code was written with AI assistance (Claude, Anthropic) fr
 prompts; we reviewed it, tested it, and ran and analysed the experiments. Key prompts and
 how the code was tested are documented in [`AI_USE.md`](AI_USE.md).
 
-## Running
+## Reproducing the results
+
+**Requirements:** an NVIDIA GPU with at least 24 GB of memory (an A100 is comfortable),
+32 GB of RAM, about 25 GB of disk, and Python 3.10+. Llama-3.1-8B-Instruct is gated on
+Hugging Face, so you need a token with the licence accepted.
+
+**1. Setup** (from `refusal-steering/`):
 
 ```bash
-pip install torch transformers datasets numpy pandas
+pip install torch transformers accelerate datasets numpy pandas
 git clone https://github.com/AI4LIFE-GROUP/med-safety-bench data_raw/med-safety-bench
-export HF_TOKEN=...                  # Llama-3.1 is gated
-
-python main.py --smoke               # fast wiring check
-python main.py                       # main result            -> outputs/
-python main.py --tag random --random-direction                -> outputs_random/
-python main.py --tag canonical --clas-risky-target canonical  -> outputs_canonical/
+export HF_TOKEN=...
 ```
 
-Every hyperparameter is in `config.py`.
+**2. Check the code without a GPU** (about 1 minute, runs on a laptop):
+
+```bash
+PYTHONPATH=.:tests python tests/test_steer2edit_math.py
+```
+
+**3. Baseline, fixed addition and CLAS** (experiments 1–3):
+
+```bash
+python main.py --smoke                                         # fast wiring check
+python main.py                                                 # -> outputs/
+python main.py --tag random --random-direction                 # -> outputs_random/
+python main.py --tag canonical --clas-risky-target canonical   # -> outputs_canonical/
+```
+
+**4. Steer2Edit** (experiment 4, about 1–1.5 h on an A100):
+
+```bash
+python run_steer2edit.py --smoke     # -> outputs_steer2edit_smoke/
+python run_steer2edit.py             # -> outputs_steer2edit/
+```
+
+Variants: `--layers all`, `--direction arditi` and `--random-direction`, each with
+`--tag <name>`. An interrupted run resumes when you rerun the same command. See
+[`STEER2EDIT.md`](STEER2EDIT.md) for details.
+
+**5. Baseline only** (optional, larger or longer runs):
+
+```bash
+python run_baseline.py --n-eval 900 --max-new-tokens 256 --tag full
+```
+
+All runs use greedy decoding and seed 0, so they are deterministic on the same hardware.
+Every hyperparameter is in `config.py`. Each output folder holds `results_table.csv`,
+`derived_metrics.csv`, `run_config.json`, and every generation for spot-checking.
+If a 24 GB GPU runs out of memory, lower `GEN_BATCH_SIZE` in `config.py`.
 
 ## Layout
 
 ```
-config.py      hyperparameters
-data.py        loaders + disjoint splits
-direction.py   difference-in-means direction
-steering.py    forward hooks: fixed addition, CLAS gate
-clas.py        gate training
-evaluate.py    generation, refusal matcher, metrics
-main.py        end-to-end, 7 stages
+config.py          hyperparameters
+data.py            loaders + disjoint splits
+direction.py       difference-in-means direction
+steering.py        forward hooks: fixed addition, CLAS gate
+clas.py            gate training
+evaluate.py        generation, refusal matcher, metrics
+main.py            end-to-end, 7 stages
+steer2edit.py      Steer2Edit: block-output directions, rank-1 head/neuron edits
+run_steer2edit.py  Steer2Edit end-to-end: grid on validation, eval vs baseline
+run_baseline.py    unsteered baseline only, with CIs and per-category rates
+tests/             CPU unit tests for Steer2Edit (tiny random Llama)
 ```
 
 Each output dir holds `results_table.csv`, `derived_metrics.csv`, `alpha_sweep.csv`,
